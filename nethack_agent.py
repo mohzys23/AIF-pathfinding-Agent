@@ -5,197 +5,14 @@ from nle import nethack
 from nle.nethack import actions as nh_actions
 from collections import deque
 import time
+import helper_functions as helpers
+from constant import ITEM_NAMES, ACTION_NAMES, NORTH, SOUTH, EAST, WEST, DOWN
 
-# Action mappings for the reduced action space
-NORTH = 1     # CompassDirection.N (k)
-SOUTH = 3     # CompassDirection.S (j)
-EAST = 2      # CompassDirection.E (l)
-WEST = 4      # CompassDirection.W (h)
-PICKUP = 0    # Using MORE action as a placeholder (not ideal, but limited options)
-EAT = 21      # Command.EAT (e)
-WAIT = 19     # MiscDirection.WAIT (.)
-DOWN = 18     # MiscDirection.DOWN (>)
-
-# Map from action to name for logging
-ACTION_NAMES = {
-    NORTH: "NORTH (k)", 
-    SOUTH: "SOUTH (j)", 
-    EAST: "EAST (l)", 
-    WEST: "WEST (h)",
-    PICKUP: "PICKUP (,)",
-    EAT: "EAT (e)",
-    WAIT: "WAIT (.)",
-    DOWN: "DOWN (>)"
-}
-
-# Item character to name mapping
-ITEM_NAMES = {
-    ord('$'): "gold piece",
-    ord('%'): "food",
-    ord('!'): "potion",
-    ord('?'): "scroll",
-    ord('/'): "wand",
-    ord('='): "ring",
-    ord('+'): "spellbook",
-    ord('\"'): "amulet",
-    ord('('): "tool",
-    ord('['): "armor",
-    ord(')'): "weapon",
-    ord(']'): "armor",
-    ord('*'): "gem",
-    ord(','): "rock/stone",
-}
-
-def get_agent_position(obs):
-    return tuple(obs["blstats"][:2])
-
-def is_walkable(char_code, glyph):
-    # Floor, corridor, open door, stairs
-    walkable = [ord('.'), ord('#'), ord('+'), ord('>'), ord('<')]
-    return char_code in walkable or is_item(char_code)
-
-def is_item(char_code):
-    # Expanded list of item characters
-    return char_code in ITEM_NAMES
-
-def find_path_bfs(start, target, chars, glyphs, visited_positions=None):
-    """Find a path from start to target using BFS."""
-    queue = deque([(start, [])])
-    visited = {start}
-    height, width = chars.shape
-    
-    while queue:
-        (x, y), path = queue.popleft()
-        
-        if (x, y) == target:
-            return path
-        
-        # Try all four directions
-        for dx, dy, action in [(0, -1, NORTH), (1, 0, EAST), (0, 1, SOUTH), (-1, 0, WEST)]:
-            nx, ny = x + dx, y + dy
-            if 0 <= ny < height and 0 <= nx < width:
-                if (nx, ny) not in visited and is_walkable(chars[ny][nx], glyphs[ny][nx]):
-                    # If we have visited positions, avoid revisiting frequently visited positions
-                    if visited_positions and visited_positions.get((nx, ny), 0) > 10:
-                        continue
-                    
-                    visited.add((nx, ny))
-                    new_path = path + [action]
-                    queue.append(((nx, ny), new_path))
-    
-    return None
-
-def find_nearest_item(pos, chars, glyphs, visited_positions=None):
-    """Find the nearest item and return its position and a path to it."""
-    height, width = chars.shape
-    x, y = pos
-    
-    # Check if already on an item
-    if is_item(chars[y][x]):
-        return pos, []
-    
-    # Search using BFS
-    queue = deque([(pos, [])])
-    visited = {pos}
-    
-    while queue:
-        (cx, cy), path = queue.popleft()
-        
-        # Try all four directions
-        for dx, dy, action in [(0, -1, NORTH), (1, 0, EAST), (0, 1, SOUTH), (-1, 0, WEST)]:
-            nx, ny = cx + dx, cy + dy
-            if 0 <= ny < height and 0 <= nx < width:
-                if (nx, ny) not in visited and is_walkable(chars[ny][nx], glyphs[ny][nx]):
-                    if is_item(chars[ny][nx]):
-                        return (nx, ny), path + [action]
-                    
-                    # If we have visited positions, avoid revisiting frequently visited positions
-                    if visited_positions and visited_positions.get((nx, ny), 0) > 10:
-                        continue
-                        
-                    visited.add((nx, ny))
-                    queue.append(((nx, ny), path + [action]))
-    
-    return None, []
-
-def find_unexplored_bfs(pos, seen_map, chars, glyphs, visited_positions=None):
-    """Find the nearest unexplored area using BFS."""
-    height, width = chars.shape
-    
-    queue = deque([(pos, [])])
-    visited = {pos}
-    
-    while queue:
-        (x, y), path = queue.popleft()
-        
-        # Check surrounding cells for unexplored tiles
-        for dx, dy, action in [(0, -1, NORTH), (1, 0, EAST), (0, 1, SOUTH), (-1, 0, WEST)]:
-            nx, ny = x + dx, y + dy
-            if 0 <= ny < height and 0 <= nx < width:
-                if (nx, ny) not in visited:
-                    # If we found an unexplored walkable cell
-                    if not seen_map[ny][nx] and is_walkable(chars[ny][nx], glyphs[ny][nx]):
-                        return (nx, ny), path + [action]
-                    
-                    # Continue searching if the cell is walkable
-                    if is_walkable(chars[ny][nx], glyphs[ny][nx]):
-                        # If we have visited positions, avoid revisiting frequently visited positions
-                        if visited_positions and visited_positions.get((nx, ny), 0) > 15:
-                            continue
-                            
-                        visited.add((nx, ny))
-                        queue.append(((nx, ny), path + [action]))
-    
-    return None, []
-
-def get_least_visited_position(pos, chars, glyphs, visited_positions):
-    """Find the least visited walkable position."""
-    if not visited_positions:
-        return None, []
-    
-    # Get all walkable positions and their visit counts
-    height, width = chars.shape
-    walkable_positions = []
-    
-    for y in range(height):
-        for x in range(width):
-            if is_walkable(chars[y][x], glyphs[y][x]):
-                visits = visited_positions.get((x, y), 0)
-                walkable_positions.append(((x, y), visits))
-    
-    if not walkable_positions:
-        return None, []
-    
-    # Sort by visit count (ascending)
-    walkable_positions.sort(key=lambda p: p[1])
-    
-    # Take the least visited position that's not the current one
-    for target_pos, visits in walkable_positions:
-        if target_pos != pos and visits < 5:
-            # Find path to this position
-            path = find_path_bfs(pos, target_pos, chars, glyphs, visited_positions)
-            if path:
-                return target_pos, path
-    
-    return None, []
-
-def find_stairs(chars):
-    """Find down stairs in the level."""
-    stairs_positions = np.argwhere(chars == ord('>'))
-    if len(stairs_positions) > 0:
-        # Return as (x, y)
-        y, x = stairs_positions[0]
-        return (x, y)
-    return None
-
-def parse_message(obs):
-    """Extract readable message from observation."""
-    message_chars = obs["message"]
-    message = "".join([chr(c) for c in message_chars if c != 0])
-    return message
 
 def main():
-    env = gym.make("NetHackScore-v0", render_mode="human")
+    # Create environment with terminal rendering mode
+    print("\n🎮 Creating NetHack environment with terminal interface...\n")
+    env = gym.make("NetHackScore-v0", render_mode="ansi")
     obs, _ = env.reset()
     seen_map = np.zeros_like(obs["chars"], dtype=bool)
     
@@ -221,8 +38,12 @@ def main():
         print("\n========== STARTING NEW AGENT RUN ==========\n")
         
         while not (terminated or truncated) and step < max_steps:
+            # Display the current game state in the terminal
+            ansi_render = env.render()
+            print("\n" + ansi_render + "\n")
+            
             step += 1
-            pos = get_agent_position(obs)
+            pos = helpers.get_agent_position(obs)
             x, y = pos
             
             # Update visit count for current position
@@ -237,7 +58,7 @@ def main():
             current_level = obs['blstats'][12]
             
             # Check game message for important information
-            message = parse_message(obs)
+            message = helpers.parse_message(obs)
             if message:
                 print(f"Game message: {message}")
                 
@@ -268,9 +89,9 @@ def main():
             print(f"\nSTATUS - HP: {hp}/{max_hp} | Hunger: {hunger_text} | Level: {current_level} | Items: {items_collected}")
             
             # Check if we're on an item
-            if is_item(obs["chars"][y][x]):
+            if helpers.is_item(obs["chars"][y][x]):
                 item_type = ITEM_NAMES.get(obs["chars"][y][x], "unknown item")
-                action = EAT if obs["chars"][y][x] == ord('%') else PICKUP
+                action = nh_actions.Command.EAT if obs["chars"][y][x] == ord('%') else nh_actions.Command.PICKUP
                 print(f"🎒 Found {item_type} at {pos}. Picking up...")
             else:
                 # If we're in random exploration mode, continue with it
@@ -284,33 +105,33 @@ def main():
                     break
                 # If we have enough items, try to find stairs
                 elif items_collected >= 3 and not descended:
-                    stairs_pos = find_stairs(obs["chars"])
+                    stairs_pos = helpers.find_stairs(obs["chars"])
                     
                     if stairs_pos and pos == stairs_pos:
                         action = DOWN
                         print(f"⬇️ Found stairs! Going down...")
                     elif stairs_pos:
                         # Find path to stairs
-                        path = find_path_bfs(pos, stairs_pos, obs["chars"], obs["glyphs"], visited_positions)
+                        path = helpers.find_path_bfs(pos, stairs_pos, obs["chars"], obs["glyphs"], visited_positions)
                         if path and len(path) > 0:
                             action = path[0]
                             print(f"🧭 Moving toward stairs: {stairs_pos}")
                         else:
                             # No clear path, explore
-                            item_pos, item_path = find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
+                            item_pos, item_path = helpers.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
                             if item_pos and len(item_path) > 0:
                                 item_type = ITEM_NAMES.get(obs["chars"][item_pos[1]][item_pos[0]], "unknown item")
                                 action = item_path[0]
                                 print(f"🏃 Moving toward {item_type} at {item_pos}")
                             else:
                                 # Try to find unexplored areas
-                                unexplored_pos, unexplored_path = find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
+                                unexplored_pos, unexplored_path = helpers.find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
                                 if unexplored_pos and len(unexplored_path) > 0:
                                     action = unexplored_path[0]
                                     print(f"🔍 Exploring: {unexplored_pos}")
                                 else:
                                     # Try to find least visited position
-                                    least_visited_pos, least_visited_path = get_least_visited_position(pos, obs["chars"], obs["glyphs"], visited_positions)
+                                    least_visited_pos, least_visited_path = helpers.get_least_visited_position(pos, obs["chars"], obs["glyphs"], visited_positions)
                                     if least_visited_pos and len(least_visited_path) > 0:
                                         action = least_visited_path[0]
                                         print(f"👣 Moving to least visited: {least_visited_pos}")
@@ -320,20 +141,20 @@ def main():
                                         print(f"🎲 Moving randomly")
                     else:
                         # No stairs found, look for items or explore
-                        item_pos, item_path = find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
+                        item_pos, item_path = helpers.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
                         if item_pos and len(item_path) > 0:
                             item_type = ITEM_NAMES.get(obs["chars"][item_pos[1]][item_pos[0]], "unknown item")
                             action = item_path[0]
                             print(f"🏃 Moving toward {item_type} at {item_pos}")
                         else:
                             # Try to find unexplored areas
-                            unexplored_pos, unexplored_path = find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
+                            unexplored_pos, unexplored_path = helpers.find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
                             if unexplored_pos and len(unexplored_path) > 0:
                                 action = unexplored_path[0]
                                 print(f"🔍 Exploring: {unexplored_pos}")
                             else:
                                 # Try to find least visited position
-                                least_visited_pos, least_visited_path = get_least_visited_position(pos, obs["chars"], obs["glyphs"], visited_positions)
+                                least_visited_pos, least_visited_path = helpers.get_least_visited_position(pos, obs["chars"], obs["glyphs"], visited_positions)
                                 if least_visited_pos and len(least_visited_path) > 0:
                                     action = least_visited_path[0]
                                     print(f"👣 Moving to least visited: {least_visited_pos}")
@@ -343,20 +164,20 @@ def main():
                                     print(f"🎲 Moving randomly")
                 else:
                     # Look for items to collect
-                    item_pos, item_path = find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
+                    item_pos, item_path = helpers.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
                     if item_pos and len(item_path) > 0:
                         item_type = ITEM_NAMES.get(obs["chars"][item_pos[1]][item_pos[0]], "unknown item")
                         action = item_path[0]
                         print(f"🏃 Moving toward {item_type} at {item_pos}")
                     else:
                         # Try to find unexplored areas
-                        unexplored_pos, unexplored_path = find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
+                        unexplored_pos, unexplored_path = helpers.find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
                         if unexplored_pos and len(unexplored_path) > 0:
                             action = unexplored_path[0]
                             print(f"🔍 Exploring: {unexplored_pos}")
                         else:
                             # Try to find least visited position
-                            least_visited_pos, least_visited_path = get_least_visited_position(pos, obs["chars"], obs["glyphs"], visited_positions)
+                            least_visited_pos, least_visited_path = helpers.get_least_visited_position(pos, obs["chars"], obs["glyphs"], visited_positions)
                             if least_visited_pos and len(least_visited_path) > 0:
                                 action = least_visited_path[0]
                                 print(f"👣 Moving to least visited: {least_visited_pos}")
@@ -420,11 +241,11 @@ def main():
                 print(f"📦 Collected an item! Total: {items_collected}")
                 
                 # Try to determine what was collected from the message
-                message = parse_message(obs)
+                message = helpers.parse_message(obs)
                 print(f"Message: {message}")
                     
             # Slow down the agent execution for better visualization
-            time.sleep(0.05)  # 50ms delay
+            time.sleep(0.05)
                 
         # Print final status
         if terminated:
@@ -440,6 +261,11 @@ def main():
                  (", having descended" if descended else ", without descending"))
             
     finally:
+        # Show the final game state
+        final_render = env.render()
+        print("\nFinal game state:\n")
+        print(final_render)
+        
         env.close()
         print("\n========== AGENT RUN COMPLETE ==========\n")
 
