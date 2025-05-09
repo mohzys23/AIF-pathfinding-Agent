@@ -1,2 +1,21 @@
 .venv/
 venv/
+venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+
+
+# Environment variables
+.env
+
+# Logs
+logs/
+
+# Data
+data/
+
