@@ -1,17 +1,44 @@
+# NetHack Pathfinding Agent
 
-# AIF-pathfinding-Agent
+An intelligent agent that navigates the NetHack dungeon environment using Python and the NetHack Learning Environment (NLE).
 
-A pathfinding agent for NetHack using Python and the NetHack Learning Environment (NLE).
+
+### Resources
+
+**Gen NLE doc**
+
+**GITHUB**: [https://gist.github.com/HanClinto/310bc189dcb34b9628d5151b168a34b0](https://gist.github.com/HanClinto/310bc189dcb34b9628d5151b168a34b0)
 
 ## Overview
 
-This project implements an intelligent agent that navigates the NetHack dungeon environment with the following capabilities:
+This project implements an autonomous agent that explores and navigates through NetHack dungeons using pathfinding algorithms and strategic decision-making.
 
-- Pathfinding using Breadth-First Search (BFS)
-- Hunger management and food-seeking behavior
+## Features
+
+- Intelligent pathfinding using Breadth-First Search (BFS)
+- Dynamic exploration of unseen areas
+- Automated hunger management and food seeking
 - Stair detection and level progression
 - Item collection tracking
-- Exploration of unseen areas
+- Fallback movement strategies
+
+## Technical Implementation
+
+- **Pathfinding**: Uses BFS to find optimal paths to goals
+- **State Management**: Tracks agent position, inventory, and dungeon state
+- **Decision Making**: Prioritizes actions based on:
+  - Hunger status
+  - Item collection goals
+  - Level progression
+  - Unexplored areas
+- **Safety**: Includes walkable tile validation and monster avoidance
+
+## Requirements
+
+- Python 3.x
+- gymnasium
+- NetHack Learning Environment (nle)
+- numpy
 
 ## Goals
 
@@ -20,28 +47,19 @@ The agent aims to:
 1. Collect at least 5 items
 2. Reach dungeon level 2 or deeper
 
-## Dependencies
+## Key Components
 
-- gymnasium
-- nle (NetHack Learning Environment)
-- numpy
-
-## Key Features
-
-- **Pathfinding**: Uses BFS algorithm to find optimal paths to goals
-- **Exploration**: Systematically explores unseen areas of the dungeon
-- **Survival**: Manages hunger by finding and consuming food
-- **Navigation**: Can locate and use stairs to descend levels
-- **Item Collection**: Tracks collected items and aims for collection goals
-
-## Agent Behaviors
-
-- Searches for and moves toward dungeon stairs
-- Explores unexplored areas when no stairs are visible
-- Monitors hunger status and seeks food when hungry
-- Picks up items encountered during exploration
-- Uses fallback movement patterns when stuck
+- `get_agent_position()`: Extracts agent coordinates
+- `is_walkable()`: Validates safe movement tiles
+- `find_stairs()`: Locates dungeon stairs
+- `find_food_letter()`: Identifies food in inventory
+- `bfs()`: Implements pathfinding algorithm
+- `find_unseen()`: Discovers unexplored areas
 
 ## Usage
 
-Run the Jupyter notebook `agent-nethack.ipynb` to see the agent in action. The environment renders in "human" mode for visual observation of the agent's behavior.
+```python
+# Run the agent
+env = gym.make("NetHackScore-v0", render_mode="human")
+# Execute the notebook [agent-nethack.ipynb](http://_vscodecontentref_/1)
+```
