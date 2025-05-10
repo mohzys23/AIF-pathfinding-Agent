@@ -7,9 +7,17 @@ from collections import deque
 import time
 import helper_functions as helpers
 from constant import ITEM_NAMES, ACTION_NAMES, NORTH, SOUTH, EAST, WEST, DOWN
+import algorithms as alg
 
 
-def main():
+
+
+
+# Configuration
+DELAY_BETWEEN_STEPS = 0.1  # Seconds to wait between steps for better visualization
+
+
+def main(max_steps=None):
     # Create environment with terminal rendering mode
     print("\n🎮 Creating NetHack environment with terminal interface...\n")
     env = gym.make("NetHackScore-v0", render_mode="ansi")
@@ -27,20 +35,26 @@ def main():
     truncated = False
     last_pos = None
     stuck_count = 0
-    max_steps = 1000
     last_action = None
     action_history = []  # Keep track of recent actions to break loops
     random_exploration_steps = 0
     last_level = 1
     died = False
+    last_hp = obs["blstats"][10]  # Initial HP
+    success = False
     
     try:
         print("\n========== STARTING NEW AGENT RUN ==========\n")
+        print(f"Running {'until success or death (no step limit)' if max_steps is None else f'with max {max_steps} steps'}")
         
-        while not (terminated or truncated) and step < max_steps:
+        # Run until termination, success, or max_steps (if specified)
+        while not (terminated or truncated or success or died) and (max_steps is None or step < max_steps):
             # Display the current game state in the terminal
-            ansi_render = env.render()
-            print("\n" + ansi_render + "\n")
+            try:
+                ansi_render = env.render()
+                print("\n" + ansi_render + "\n")
+            except Exception as e:
+                print(f"Note: Could not render the game state: {e}")
             
             step += 1
             pos = helpers.get_agent_position(obs)
@@ -67,6 +81,18 @@ def main():
                     print("⚰️ AGENT DIED!")
                     died = True
                     break
+            
+            # Check HP to detect damage/death
+            current_hp = obs["blstats"][10]
+            if current_hp < last_hp:
+                print(f"❗ HP decreased from {last_hp} to {current_hp}!")
+            last_hp = current_hp
+            
+            # Check if HP is zero (agent died)
+            if current_hp <= 0:
+                print("⚰️ AGENT DIED! (HP reached 0)")
+                died = True
+                break
             
             # Check if level changed
             if current_level != last_level:
@@ -102,6 +128,7 @@ def main():
                 # If we have enough items and have descended, we're done
                 elif items_collected >= 5 and descended:
                     print(f"\n🎉 SUCCESS: Collected {items_collected} items and reached level {current_level}!\n")
+                    success = True
                     break
                 # If we have enough items, try to find stairs
                 elif items_collected >= 3 and not descended:
@@ -112,20 +139,20 @@ def main():
                         print(f"⬇️ Found stairs! Going down...")
                     elif stairs_pos:
                         # Find path to stairs
-                        path = helpers.find_path_bfs(pos, stairs_pos, obs["chars"], obs["glyphs"], visited_positions)
+                        path = alg.find_path_bfs(pos, stairs_pos, obs["chars"], obs["glyphs"], visited_positions)
                         if path and len(path) > 0:
                             action = path[0]
                             print(f"🧭 Moving toward stairs: {stairs_pos}")
                         else:
                             # No clear path, explore
-                            item_pos, item_path = helpers.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
+                            item_pos, item_path = alg.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
                             if item_pos and len(item_path) > 0:
                                 item_type = ITEM_NAMES.get(obs["chars"][item_pos[1]][item_pos[0]], "unknown item")
                                 action = item_path[0]
                                 print(f"🏃 Moving toward {item_type} at {item_pos}")
                             else:
                                 # Try to find unexplored areas
-                                unexplored_pos, unexplored_path = helpers.find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
+                                unexplored_pos, unexplored_path = alg.find_unexplored_dfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
                                 if unexplored_pos and len(unexplored_path) > 0:
                                     action = unexplored_path[0]
                                     print(f"🔍 Exploring: {unexplored_pos}")
@@ -141,14 +168,14 @@ def main():
                                         print(f"🎲 Moving randomly")
                     else:
                         # No stairs found, look for items or explore
-                        item_pos, item_path = helpers.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
+                        item_pos, item_path = alg.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
                         if item_pos and len(item_path) > 0:
                             item_type = ITEM_NAMES.get(obs["chars"][item_pos[1]][item_pos[0]], "unknown item")
                             action = item_path[0]
                             print(f"🏃 Moving toward {item_type} at {item_pos}")
                         else:
                             # Try to find unexplored areas
-                            unexplored_pos, unexplored_path = helpers.find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
+                            unexplored_pos, unexplored_path = alg.find_unexplored_dfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
                             if unexplored_pos and len(unexplored_path) > 0:
                                 action = unexplored_path[0]
                                 print(f"🔍 Exploring: {unexplored_pos}")
@@ -164,14 +191,14 @@ def main():
                                     print(f"🎲 Moving randomly")
                 else:
                     # Look for items to collect
-                    item_pos, item_path = helpers.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
+                    item_pos, item_path = alg.find_nearest_item(pos, obs["chars"], obs["glyphs"], visited_positions)
                     if item_pos and len(item_path) > 0:
                         item_type = ITEM_NAMES.get(obs["chars"][item_pos[1]][item_pos[0]], "unknown item")
                         action = item_path[0]
                         print(f"🏃 Moving toward {item_type} at {item_pos}")
                     else:
                         # Try to find unexplored areas
-                        unexplored_pos, unexplored_path = helpers.find_unexplored_bfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
+                        unexplored_pos, unexplored_path = alg.find_unexplored_dfs(pos, seen_map, obs["chars"], obs["glyphs"], visited_positions)
                         if unexplored_pos and len(unexplored_path) > 0:
                             action = unexplored_path[0]
                             print(f"🔍 Exploring: {unexplored_pos}")
@@ -193,7 +220,11 @@ def main():
                     # Start a random exploration phase
                     directions = [NORTH, SOUTH, EAST, WEST]
                     if last_action in directions:
-                        directions.remove(last_action)
+                        try:
+                            directions.remove(last_action)
+                        except ValueError:
+                            # If last_action is not in directions, just continue
+                            pass
                     action = random.choice(directions)
                     random_exploration_steps = 5  # Explore randomly for 5 steps
                     stuck_count = 0
@@ -245,29 +276,51 @@ def main():
                 print(f"Message: {message}")
                     
             # Slow down the agent execution for better visualization
-            time.sleep(0.05)
+            time.sleep(DELAY_BETWEEN_STEPS)
                 
         # Print final status
-        if terminated:
-            print("\n⚠️ Game terminated (agent likely died)")
-        elif truncated:
-            print("\n⏱️ Game truncated (hit step/time limit)")
+        if success:
+            print("\n🎉 SUCCESS: Mission accomplished!")
         elif died:
             print("\n⚰️ Agent died")
-        elif items_collected >= 5 and descended:
-            print("\n🎉 SUCCESS: Mission accomplished!")
+        elif terminated:
+            # Try to determine why the game terminated
+            message = helpers.parse_message(obs)
+            print(f"\n⚠️ Game terminated: {message if message else 'Unknown reason'}")
+            
+            # Check level to see if we might have fallen through a trap door
+            if obs['blstats'][12] != last_level:
+                print(f"📊 Level changed unexpectedly from {last_level} to {obs['blstats'][12]}")
+                
+            # Check HP to see if agent died
+            if obs["blstats"][10] <= 0:
+                print("💀 HP is 0 or less, agent likely died")
+                
+            # Check starvation
+            hunger_status = obs["blstats"][21]
+            if hunger_status >= 4:  # Weak or Fainting
+                print("🍽️ Agent may have starved (hunger status: Weak or Fainting)")
+        elif truncated:
+            print("\n⏱️ Game truncated (hit external time/step limit)")
         else:
             print(f"\n🛑 Stopped after {step} steps with {items_collected} items collected" + 
                  (", having descended" if descended else ", without descending"))
             
     finally:
         # Show the final game state
-        final_render = env.render()
-        print("\nFinal game state:\n")
-        print(final_render)
+        try:
+            final_render = env.render()
+            print("\nFinal game state:\n")
+            print(final_render)
+        except Exception as e:
+            print(f"Note: Could not render final game state: {e}")
         
         env.close()
         print("\n========== AGENT RUN COMPLETE ==========\n")
 
 if __name__ == "__main__":
-    main() 
+    # Run with no step limit (will run until success or death)
+    main(max_steps=None)
+    
+    # Alternatively, you can run with a step limit:
+    # main(max_steps=1000) 

@@ -4,18 +4,18 @@ This project implements an autonomous agent capable of exploring and making prog
 
 ## Features
 
-- Intelligent pathfinding using Breadth-First Search (BFS)
+- Intelligent pathfinding using Breadth-First Search (BFS) and Depth-First Search (DFS)
 - Item collection strategy with prioritization
 - Exploration of unexplored areas in the game map
 - Detection and handling of being stuck in the same position
 - Oscillation detection and correction
 - Automatic descent to lower dungeon levels after collecting sufficient items
+- Terminal-based display of the NetHack interface
 
 ## Requirements
 
 - Python 3.9+
 - pip (Python package installer)
-- A graphical environment to display the NetHack interface
 
 ## Installation
 
@@ -43,43 +43,45 @@ Note: NLE (NetHack Learning Environment) may have additional system dependencies
 
 ## Project Structure
 
+- **algorithms.py**: Contains implementations of pathfinding algorithms (BFS, DFS) and related search utilities
 - **nethack_agent.py**: Main agent implementation that handles game interactions, decision-making, and action execution.
 - **helper_functions.py**: Contains helper functions for pathfinding, item detection, map exploration, and other utilities.
 - **constant.py**: Constants and mappings used by the agent (action codes, item identifiers, etc.)
+- **run_agent.sh**: Shell script to run the agent with or without a step limit
 
 ## Running the Agent
 
-To run the agent with the visual NetHack interface:
+### Using the script
+
+The script provides an easy way to run the agent:
 
 ```bash
-python nethack_agent.py
-```
-
-Alternatively, use the provided script:
-
-```bash
+# Make the script executable first
 chmod +x run_agent.sh
+
+# Run without a step limit (until success or death)
 ./run_agent.sh
+
+# Run with a specific step limit (e.g., 500 steps)
+./run_agent.sh 500
 ```
 
-This will open a window displaying the NetHack game interface along with log information in the terminal.
+### Running directly
 
-## Troubleshooting the NetHack Interface
+You can also run the Python script directly:
 
-If you don't see the NetHack interface:
+```bash
+python3 nethack_agent.py
+```
 
-1. **Check your display environment**: Ensure you're running in an environment that supports graphical windows (X11 on Linux, native GUI on Windows/macOS).
-2. **Check for SDL dependencies**: The NetHack Learning Environment uses SDL for rendering. Make sure your system has the necessary SDL libraries.
-3. **Remote environments**: If you're running on a remote server or SSH session, ensure you have X11 forwarding enabled.
-4. **Check console output**: The script provides information in the terminal about the interface status.
-5. **Alternative render modes**: If you still can't see the interface, you can modify the `render_mode` parameter in nethack_agent.py to use "ansi" instead of "human" for terminal-based visualization.
+The agent will display the NetHack interface directly in your terminal using ANSI rendering. You'll see the dungeon, the agent (@), monsters, items, and other game elements, along with detailed logs of the agent's decision-making process.
 
 ## Agent Behavior
 
 The agent follows this general strategy:
 
 1. Collect at least 3 items on the current level
-2. Find and descend stairs to reach the next level if 5 items has been retrieved/collected
+2. Find and descend stairs to reach the next level
 3. Continue exploring and collecting items
 4. Success is achieved when the agent has collected at least 5 items and descended at least one level
 
@@ -87,7 +89,7 @@ The agent follows this general strategy:
 
 The agent provides:
 
-1. The classic ASCII NetHack interface showing the dungeon, character, monsters, and items
+1. The classic ASCII NetHack interface showing the dungeon, character, monsters, and items directly in the terminal
 2. Terminal output with detailed logs of agent decision-making
 3. Emojis to indicate status:
    - 🎒 Finding items
@@ -98,6 +100,9 @@ The agent provides:
    - ⬇️ Going down stairs
    - 🔄 Breaking out of movement patterns
    - ⚠️ Stuck detection
+   - ❗ HP decrease alerts
+   - 😴 Unconsciousness alerts
+   - 🕳️ Falling through trap alerts
 
 ## Technical Implementation
 
@@ -114,9 +119,17 @@ The agent provides:
 
 You can modify the agent's behavior by adjusting parameters in `nethack_agent.py`:
 
-- `max_steps`: Maximum steps the agent will take before stopping
-- `time.sleep()`: Adjust the speed of agent actions for better visualization
-- Item collection thresholds for level descent
+- `time.sleep()`: Adjust the speed of agent actions for better visualization (default is 0.05 seconds between steps)
+- Item collection thresholds for level descent (currently set to collect at least 3 items before looking for stairs)
+- Pass a `max_steps` parameter to limit the maximum number of steps
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. **Python not found**: Make sure you're using `python3` explicitly on macOS/Linux
+2. **Missing dependencies**: Ensure all required packages are installed
+3. **ANSI rendering issues**: Some terminals may not display the ASCII art correctly
 
 ## Acknowledgments
 
