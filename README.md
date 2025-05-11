@@ -1,15 +1,23 @@
 # NetHack Pathfinding Agent
 
-A simple pathfinding agent that explores and collects items in the NetHack game environment.
+A simple agent that explores NetHack dungeons, collects items, and uses pathfinding to navigate.
 
-## Features
+## Setup
 
-- BFS pathfinding for navigation
-- Basic item collection and inventory management
-- Hunger monitoring and food management
-- Automatic stair detection after collecting items
+1. Create and activate virtual environment:
 
-## Requirements & Installation
+```bash
+# Create venv
+python -m venv venv
+
+# Activate venv
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+```
+
+2. Install dependencies:
 
 ```bash
 pip install gymnasium numpy nle
@@ -18,22 +26,30 @@ pip install gymnasium numpy nle
 ## Usage
 
 Run without step limit:
+
 ```bash
 python nethack_agent.py
 ```
 
 Run with step limit:
+
 ```bash
 python nethack_agent.py 1000
 ```
 
-## How It Works
+## Agent Behavior
 
 The agent:
-- Explores the dungeon using BFS
-- Collects items it finds along the way
-- Manages hunger by prioritizing food when needed
-- Seeks stairs after collecting 5 items
-- Tracks visited locations to avoid loops
 
-The agent provides real-time status updates showing position, HP, hunger level, and items collected.
+- Collects items (food, gold, weapons, armor, etc.)
+- Seeks stairs after collecting items
+- Tracks visited locations to prevent getting stuck
+- Maintains a log of collected items
+
+The agent displays:
+
+- Current position and step count
+- HP and hunger status
+- Items collected
+- Action being taken
+- Detailed collection log at end of run
