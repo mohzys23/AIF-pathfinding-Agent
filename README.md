@@ -1,79 +1,55 @@
 # NetHack Pathfinding Agent
 
-A focused implementation of an autonomous agent for collecting items in NetHack using the OpenAI Gymnasium interface and the NetHack Learning Environment (NLE).
+A simple agent that explores NetHack dungeons, collects items, and uses pathfinding to navigate.
 
-## Features
+## Setup
 
-- Efficient pathfinding using BFS and DFS algorithms
-- Smart item collection strategy
-- Intelligent hunger management with all NetHack hunger states
-- Systematic exploration of unexplored areas
-- Pattern detection to avoid movement loops
-- Clear status display with hunger state tracking
+1. Create and activate virtual environment:
 
-## Requirements
-
-- Python 3.9+
-- pip (Python package installer)
-- OpenAI Gymnasium
-- NetHack Learning Environment (NLE)
-
-## Installation
-
-1. Create and activate a virtual environment:
 ```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Create venv
+python -m venv venv
+
+# Activate venv
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
 ```
 
-2. Install required packages:
+2. Install dependencies:
+
 ```bash
-pip install gymnasium numpy "nle>=0.9.0"
+pip install gymnasium numpy nle
 ```
 
-## Project Structure
+## Usage
 
-- **nethack_agent.py**: Main agent implementation with game interaction and decision-making
-- **algorithms.py**: Core pathfinding algorithms (BFS, DFS)
-- **helper_functions.py**: Utility functions for navigation and item detection
-- **constant.py**: Game constants, hunger states, and mappings
+Run without step limit:
 
-## Running the Agent
-
-Run the agent with:
 ```bash
-python nethack_agent.py           # Run indefinitely until goal reached
-python nethack_agent.py 600       # Run for maximum 600 steps
+python nethack_agent.py
 ```
 
-The agent will:
-1. Navigate through the dungeon
-2. Collect items (gold, food, armor, weapons)
-3. Manage hunger state intelligently:
-   - Eat when hungry or worse
-   - Avoid eating when satiated
-   - Prevent oversatiation to avoid choking
-4. Stop after collecting 5 items or reaching max steps (if specified)
+Run with step limit:
 
-## Hunger States
+```bash
+python nethack_agent.py 1000
+```
 
-The agent tracks and responds to all NetHack hunger states:
-- Oversatiated: Too full, risk of choking
-- Satiated: Well fed
-- Not Hungry: Normal state
-- Hungry: Getting hungry
-- Weak: Weak from hunger
-- Fainting: About to faint
+## Agent Behavior
 
-## Configuration
+The agent:
 
-You can modify these parameters in the code:
-- `DELAY_BETWEEN_STEPS`: Time between actions for visualization (constant.py)
-- Visit thresholds for position revisiting (helper_functions.py)
+- Collects items (food, gold, weapons, armor, etc.)
+- Seeks stairs after collecting items
+- Tracks visited locations to prevent getting stuck
+- Maintains a log of collected items
 
-## Troubleshooting
+The agent displays:
 
-Common issues:
-1. **Missing dependencies**: Ensure all packages are installed
-2. **Rendering issues**: Some terminals may not display ASCII art correctly
-3. **NLE installation**: See [NLE GitHub](https://github.com/facebookresearch/nle) for platform-specific instructions
+- Current position and step count
+- HP and hunger status
+- Items collected
+- Action being taken
+- Detailed collection log at end of run
