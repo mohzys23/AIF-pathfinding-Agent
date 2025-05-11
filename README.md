@@ -25,7 +25,7 @@ pip install gymnasium numpy nle
 
 ## Usage
 
-Run without step limit:
+Run single episode:
 
 ```bash
 python nethack_agent.py
@@ -35,6 +35,16 @@ Run with step limit:
 
 ```bash
 python nethack_agent.py 1000
+```
+
+Run evaluation (multiple episodes):
+
+```bash
+# Run default (5 episodes, 1000 steps each)
+python evaluate_agent.py
+
+# Run custom configuration
+python evaluate_agent.py --episodes 10 --steps 2000
 ```
 
 ## Agent Behavior
