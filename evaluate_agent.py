@@ -1,43 +1,28 @@
-import time
-from nethack_agent import main
+# ─── Evaluation (no descent) ───────────────────────────────────────────────────
+import gymnasium as gym
+import numpy as np
+import statistics
 
-def evaluate_agent(num_episodes=5, steps_per_episode=1000):
-    """
-    Run multiple episodes of the agent and collect statistics
-    
-    Args:
-        num_episodes (int): Number of episodes to run
-        steps_per_episode (int): Maximum steps per episode
-    """
-    print(f"\n=== Starting Agent Evaluation ===")
-    print(f"Episodes: {num_episodes}")
-    print(f"Steps per episode: {steps_per_episode}")
-    
-    total_items = 0
-    total_steps = 0
-    
-    for episode in range(num_episodes):
-        print(f"\n=== Episode {episode + 1}/{num_episodes} ===")
-        start_time = time.time()
-        
-        # Run one episode
-        main(max_steps=steps_per_episode)
-        
-        episode_time = time.time() - start_time
-        print(f"\nEpisode {episode + 1} completed in {episode_time:.2f} seconds")
-        
-        # Add a small delay between episodes
-        time.sleep(1)
-    
-    print("\n=== Evaluation Complete ===")
+# Import your refactored main
+from nethack_agent import main  
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Evaluate NetHack Agent')
-    parser.add_argument('--episodes', type=int, default=5,
-                      help='number of episodes to run (default: 5)')
-    parser.add_argument('--steps', type=int, default=1000,
-                      help='maximum steps per episode (default: 1000)')
-    
-    args = parser.parse_args()
-    evaluate_agent(args.episodes, args.steps) 
+N = 1 # Number of evaluation runs
+items_list = []
+starve_count = 0
+steps_per_item = []
+success_count = 0
+
+for _ in range(N):
+    items, starvation, steps = main(max_steps=1000)
+    items_list.append(items)
+    if starvation:
+        starve_count += 1
+    if items > 0:
+        steps_per_item.append(steps / items)
+    if items >= 5:
+        success_count += 1
+
+print(f"Items collected:      {statistics.mean(items_list):.2f} ± {statistics.pstdev(items_list):.2f}")
+print(f"Starvation rate:      {starve_count}/{N} ({starve_count/N*100:.0f}%)")
+print(f"Avg steps per item:   {statistics.mean(steps_per_item):.1f} ± {statistics.pstdev(steps_per_item):.1f}")
+print(f"Full‐success rate:    {success_count}/{N} ({success_count/N*100:.0f}%)")
